@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vadym Cloud Notes</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <style>
+        body { max-width: 800px; margin: 20px auto; padding: 0 20px; }
+        .user-bar { display: flex; justify-content: space-between; align-items: center; background: #f0f2f5; padding: 15px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #ddd; }
+        .note-card { 
+            background: white; border: 1px solid #e1e4e8; padding: 20px; margin: 15px 0; 
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            display: flex; justify-content: space-between; align-items: center;
+            transition: transform 0.2s;
+        }
+        .note-card:hover { transform: translateY(-2px); }
+        .note-content { flex-grow: 1; color: #333; font-size: 1.1em; }
+        .delete-btn { 
+            background-color: #ff4d4d; color: white; border: none; padding: 8px 15px; 
+            border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-left: 15px;
+        }
+        .delete-btn:hover { background-color: #ff1a1a; }
+        .hidden { display: none; }
+        button.logout { background-color: #666; border: none; }
+        #new-note-form { display: flex; gap: 10px; margin-bottom: 40px; }
+        #noteText { flex-grow: 1; margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div id="loading"><h1>☁️ Connecting to Cloud...</h1></div>
+
+    <div id="app" class="hidden">
+        <div class="user-bar">
+            <span>Logged in as: <strong>Vadym Grygoriev</strong></span>
+            <button class="logout" onclick="logout()">Logout</button>
+        </div>
+
+        <div id="new-note-form">
+            <input type="text" id="noteText" placeholder="What's on your mind?">
+            <button onclick="addNote()">Add Note</button>
+        </div>
+
+        <div id="notesList">Fetching your secure notes...</div>
+    </div>
+
+    <script>
+        const CLIENT_ID = '440hv54rp3jejng7f70qpqj61p'; 
+        const COGNITO_DOMAIN = 'https://us-east-1lnujdlrvl.auth.us-east-1.amazoncognito.com'; 
+        const REDIRECT_URI = 'https://vadymcloud.online';
+        const API_URL = 'https://iwehv0e4vi.execute-api.us-east-1.amazonaws.com/prod/notes';
+
+        window.onload = function() {
+            const hash = window.location.hash;
+            if (hash.includes("id_token=")) {
+                const params = new URLSearchParams(hash.replace("#", "?"));
+                localStorage.setItem("id_token", params.get("id_token"));
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+
+            const token = localStorage.getItem("id_token");
+            if (!token) {
+                window.location.href = `${COGNITO_DOMAIN}/login?client_id=${CLIENT_ID}&response_type=token&scope=email+openid+profile&redirect_uri=${REDIRECT_URI}`;
+            } else {
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("app").classList.remove("hidden");
+                loadNotes(token);
+            }
+        };
+
+        async function loadNotes(token) {
+            try {
+                const res = await fetch(API_URL, { headers: { 'Authorization': token } });
+                const data = await res.json();
+                const notes = Array.isArray(data) ? data : (data.notes || []);
+                const list = document.getElementById('notesList');
+                
+                list.innerHTML = notes.length 
+                    ? notes.map(n => `
+                        <div class="note-card">
+                            <div class="note-content">${n.content || n.text}</div>
+                            <button class="delete-btn" onclick="deleteNote('${n.noteId}}')">Delete</button>
+                        </div>`).reverse().join('')
+                    : '<p style="text-align:center; color:#999;">Your cloud storage is empty.</p>';
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function addNote() {
+            const token = localStorage.getItem("id_token");
+            const content = document.getElementById('noteText').value;
+            if (!content) return;
+
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: content })
+            });
+            document.getElementById('noteText').value = '';
+            loadNotes(token);
+        }
+
+        async function deleteNote(noteId) {
+            if (!confirm("Are you sure?")) return;
+            const token = localStorage.getItem("id_token");
+
+            await fetch(`${API_URL}?id=${noteId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': token }
+            });
+            loadNotes(token);
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${REDIRECT_URI}`;
+        }
+    </script>
+</body>
+</html>
