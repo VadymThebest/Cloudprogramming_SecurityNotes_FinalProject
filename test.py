@@ -15,4 +15,4 @@ def test_missing_delete_id():
     }
     response = lambda_handler(event, None)
     assert response['statusCode'] == 400
-    assert "Missing id" in response['body']
+    assert "Missing noteId" in response['body']
