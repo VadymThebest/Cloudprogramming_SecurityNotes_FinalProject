@@ -79,7 +79,7 @@
                     ? notes.map(n => `
                         <div class="note-card">
                             <div class="note-content">${n.content || n.text}</div>
-                            <button class="delete-btn" onclick="deleteNote('${n.noteId}}')">Delete</button>
+                            <button class="delete-btn" onclick="deleteNote('${n.noteId}')">Delete</button>
                         </div>`).reverse().join('')
                     : '<p style="text-align:center; color:#999;">Your cloud storage is empty.</p>';
             } catch (err) {

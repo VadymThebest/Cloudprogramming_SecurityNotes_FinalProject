@@ -31,15 +31,15 @@ def lambda_handler(event, context):
             return response(200, result.get('Items', []))
             
         elif method == 'DELETE':
-            path_params = event.get('pathParameters') or {}
-            note_id = path_params.get('id')
+            query_params = event.get('queryStringParameters') or {}
+            note_id = query_params.get('id')
             
             if not note_id:
-                query_params = event.get('queryStringParameters') or {}
-                note_id = query_params.get('id')
+                path_params = event.get('pathParameters') or {}
+                note_id = path_params.get('id')
 
             if not note_id:
-                return response(400, {"message": "Missing noteId"})
+                return response(400, {"message": "Missing noteId in request"})
 
             table.delete_item(
                 Key={
@@ -47,7 +47,7 @@ def lambda_handler(event, context):
                     'noteId': note_id
                 }
             )
-            return response(200, {"message": "Deleted successfully"})
+            return response(200, {"message": f"Note {note_id} deleted successfully"})
             
         return response(400, {"message": "Unsupported method"})
         
